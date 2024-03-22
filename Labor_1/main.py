@@ -11,7 +11,7 @@ if __name__ == '__main__':
     # Define Senke and Quelle object
     sink1 = Senke("S1")
     source1 = Quelle("Q1", 10, 5, sink1, sink1)
-    simulation = Simulation(duration=100)
+    simulation = Simulation(duration=20000)
     event_creation_order = 0
 
     # Create Events at system start
@@ -20,8 +20,8 @@ if __name__ == '__main__':
         simulation.schedule_event(
             Event(time=0, priority=1, creation_order=event_creation_order, function=create_packet, args=(source1,)))
 
-    # start Simulation
-    simulation.run()
+    # start Simulation with interval = 2
+    simulation.run(2)
 
 
 
