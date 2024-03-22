@@ -1,23 +1,20 @@
-from queue import PriorityQueue
-
-
-class TabeleRow:
-    def __init__(self, t, n, fun, args):
-        self.t = t
-        self.prio = PriorityQueue()
-        self.n = n
-        self.fun = fun
-        self.args = args
+import queue
 
 
 class Simulation:
-    def __init__(self):
-        self.queue = PriorityQueue()
+    def __init__(self, duration):
+        self.event_queue = queue.PriorityQueue()
+        self.current_time = 0
+        self.duration = duration
 
-    def create_simulation_definition(self, row):
-        self.queue.put(row)
+    # PUT the event in queue
+    def schedule_event(self, event):
+        self.event_queue.put(event)
 
-    def print(self):
-        while not self.queue.empty():
-            row = self.queue.get()
-            print(f"{row[0]}, {row[1]}, {row[2]}, {row[3].name}, {row[4]}")
+    def run(self):
+        while not self.event_queue.empty() and self.current_time < self.duration:
+            # GET the event from queue
+            event = self.event_queue.get()
+            self.current_time = event.time
+            event.process_event()
+            # Logic for new Events can be implemented here:

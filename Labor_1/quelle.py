@@ -1,8 +1,4 @@
-from paket import Paket
-from simulation import Simulation
-import time
-
-globaleSimulation = Simulation()
+from packet import Packet
 
 
 class Quelle:
@@ -12,14 +8,9 @@ class Quelle:
         self.iat = iat
         self.next_hop = next_hop
         self.destination = destination
-        self.counter = 0
+        self.packet_count = 0
 
-    def new_packet(self, simulationsdauer):
-        newPacket = Paket("A." + str(self.counter), time.sleep(1), self.destination)
-        self.next_hop.put(newPacket)
-        newPacket.volume
-        tupel1 = (self.counter, 1, 1, newPacket, None)
-        globaleSimulation.create_simulation_definition(tupel1)
-        self.counter += 1
-        if self.counter != simulationsdauer:
-            self.new_packet(simulationsdauer)
+    def new_packet(self):
+        self.packet_count += 1
+        packet = Packet(self.name, self.destination.name, self.packet_count, self.volume, self.destination)
+        self.next_hop.put(packet)
