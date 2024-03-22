@@ -1,5 +1,3 @@
-from queue import PriorityQueue
-
 from paket import Paket
 
 

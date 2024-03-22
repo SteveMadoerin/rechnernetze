@@ -1,5 +1,4 @@
 from quelle import Quelle, globaleSimulation
-from simulation import Simulation
 from senke import Senke
 
 if __name__ == '__main__':
@@ -11,8 +10,6 @@ if __name__ == '__main__':
     start(20)
     print("-----ErgebnisListe--------")
     globaleSimulation.print()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
 
 
