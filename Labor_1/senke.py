@@ -4,7 +4,7 @@ class Senke:
         self.name = name
 
     def put(self, packet):
-        print(f"Paket {packet.name} ist an Senke {self.name} angekommen")
+        print(f"Senke: {self.name} Paket {packet.name} angekommen")
 
 
 
