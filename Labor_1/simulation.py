@@ -50,6 +50,12 @@ def run(T):
 
         event.process_event()
 
+        # newSink2 = Senke("S2")
+        # source2 = Quelle("Q2", newSink2, 10, 5, newSink2)
+        #
+        # newEvent = Event(t=2, prio=1, n=2, func=source2.new_packet, args=(newSink2,))
+        # add_event(newEvent)
+
 
 # def print_new(self):
 #     while not self.queue.empty():
