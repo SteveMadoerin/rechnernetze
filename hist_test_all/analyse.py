@@ -1,0 +1,277 @@
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set_style('whitegrid')
+plt.style.use("fivethirtyeight")
+# NOTE: `%matplotlib inline` is a Jupyter-only magic. In a plain .py script,
+# just call plt.show() at the end to display figures.
+
+# Show every column (no "..." truncation) and don't wrap to a fixed width
+pd.set_option("display.max_columns", None)
+pd.set_option("display.width", None)
+
+# For reading stock data from Yahoo
+import yfinance as yf
+
+# For time stamps
+from datetime import datetime
+
+# The tech stocks we'll use for this analysis
+tech_list = ['AAPL', 'GOOG', 'MSFT', 'AMZN']
+
+# Set up End and Start times for data grab
+end = datetime.now()
+start = datetime(end.year - 1, end.month, end.day)
+
+for stock in tech_list:
+    globals()[stock] = yf.download(
+        stock, start=start, end=end,
+        auto_adjust=False,         # keep a separate "Adj Close" column
+        multi_level_index=False,   # keep flat columns for a single ticker
+    )
+
+# These are the DataFrames created above, not strings
+company_list = [AAPL, GOOG, MSFT, AMZN]
+company_name = ["APPLE", "GOOGLE", "MICROSOFT", "AMAZON"]
+
+for company, com_name in zip(company_list, company_name):
+    company["company_name"] = com_name
+
+df = pd.concat(company_list, axis=0)
+print(df.tail(10))
+
+# Summary Stats
+print(AAPL.describe())
+
+# General info
+print(AAPL.info())
+
+# Let's see a historical view of the closing price
+plt.figure(figsize=(15, 10))
+plt.subplots_adjust(top=1.25, bottom=1.2)
+
+for i, company in enumerate(company_list, 1):
+    plt.subplot(2, 2, i)
+    company['Adj Close'].plot()
+    plt.ylabel('Adj Close')
+    plt.xlabel(None)
+    plt.title(f"Closing Price of {tech_list[i - 1]}")
+
+plt.tight_layout()
+# plt.show()   # required in a plain .py script to open the figure window
+
+# Now let's plot the total volume of stock being traded each day
+plt.figure(figsize=(15, 10))
+plt.subplots_adjust(top=1.25, bottom=1.2)
+
+for i, company in enumerate(company_list, 1):
+    plt.subplot(2, 2, i)
+    company['Volume'].plot()
+    plt.ylabel('Volume')
+    plt.xlabel(None)
+    plt.title(f"Sales Volume for {tech_list[i - 1]}")
+
+plt.tight_layout()
+# plt.show()
+
+# 2. What was the moving average of the various stocks? MA is average for some days range eg 10days 50days etc
+ma_day = [10, 20, 50]
+
+for ma in ma_day:
+    for company in company_list:
+        column_name = f"MA for {ma} days"
+        company[column_name] = company['Adj Close'].rolling(ma).mean()
+
+fig, axes = plt.subplots(nrows=2, ncols=2)
+fig.set_figheight(10)
+fig.set_figwidth(15)
+
+AAPL[['Adj Close', 'MA for 10 days', 'MA for 20 days', 'MA for 50 days']].plot(ax=axes[0, 0])
+axes[0, 0].set_title('APPLE')
+
+GOOG[['Adj Close', 'MA for 10 days', 'MA for 20 days', 'MA for 50 days']].plot(ax=axes[0, 1])
+axes[0, 1].set_title('GOOGLE')
+
+MSFT[['Adj Close', 'MA for 10 days', 'MA for 20 days', 'MA for 50 days']].plot(ax=axes[1, 0])
+axes[1, 0].set_title('MICROSOFT')
+
+AMZN[['Adj Close', 'MA for 10 days', 'MA for 20 days', 'MA for 50 days']].plot(ax=axes[1, 1])
+axes[1, 1].set_title('AMAZON')
+
+fig.tight_layout()
+# plt.show()   # required in a plain .py script to open the figure window
+# We see in the graph that the best values to measure the moving average are 10 and 20 days because we still capture trends in the data without noise.
+
+#3. What was the daily return of the stock on average?
+# We'll use pct_change to find the percent change for each day
+for company in company_list:
+    company['Daily Return'] = company['Adj Close'].pct_change()
+
+# Then we'll plot the daily return percentage
+fig, axes = plt.subplots(nrows=2, ncols=2)
+fig.set_figheight(10)
+fig.set_figwidth(15)
+
+AAPL['Daily Return'].plot(ax=axes[0,0], legend=True, linestyle='--', marker='o')
+axes[0,0].set_title('APPLE')
+
+GOOG['Daily Return'].plot(ax=axes[0,1], legend=True, linestyle='--', marker='o')
+axes[0,1].set_title('GOOGLE')
+
+MSFT['Daily Return'].plot(ax=axes[1,0], legend=True, linestyle='--', marker='o')
+axes[1,0].set_title('MICROSOFT')
+
+AMZN['Daily Return'].plot(ax=axes[1,1], legend=True, linestyle='--', marker='o')
+axes[1,1].set_title('AMAZON')
+
+fig.tight_layout()
+# plt.show()
+
+# plot same daily return
+plt.figure(figsize=(12, 9))
+
+for i, company in enumerate(company_list, 1):
+    plt.subplot(2, 2, i)
+    company['Daily Return'].hist(bins=50)
+    plt.xlabel('Daily Return')
+    plt.ylabel('Counts')
+    plt.title(f'{company_name[i - 1]}')
+
+plt.tight_layout()
+# plt.show()
+
+#4. What was the correlation between different stocks closing prices?
+
+# Correlation is a statistic that measures the degree to which two variables move in relation to each other which has a value that must fall between -1.0 and +1.0. Correlation measures association, but doesn’t show if x causes y or vice versa — or if the association is caused by a third factor[1].
+#
+# Now what if we wanted to analyze the returns of all the stocks in our list? Let's go ahead and build a DataFrame with all the ['Close'] columns for each of the stocks dataframes.
+
+# Grab all the closing prices for the tech stock list into one DataFrame
+# NOTE: pandas_datareader's get_data_yahoo is deprecated; use yfinance instead.
+closing_df = yf.download(
+    tech_list, start=start, end=end,
+    auto_adjust=False,   # keep a separate "Adj Close" column
+)['Adj Close']
+
+# Make a new tech returns DataFrame
+tech_rets = closing_df.pct_change()
+print("   ")
+print(tech_rets.head())
+
+# Now we can compare the daily percentage return of two stocks to check how correlated. First let's see a sotck compared to itself.
+
+# Comparing Google to itself should show a perfectly linear relationship
+sns.jointplot(x='GOOG', y='GOOG', data=tech_rets, kind='scatter', color='seagreen')
+# plt.show()
+
+# We'll use joinplot to compare the daily returns of Google and Microsoft
+sns.jointplot(x='GOOG', y='MSFT', data=tech_rets, kind='scatter')
+# plt.show()
+
+# We can simply call pairplot on our DataFrame for an automatic visual analysis
+# of all the comparisons
+
+sns.pairplot(tech_rets, kind='reg')
+# plt.show()
+
+# Set up our figure by naming it returns_fig, call PairPLot on the DataFrame
+return_fig = sns.PairGrid(tech_rets.dropna())
+
+# Using map_upper we can specify what the upper triangle will look like.
+return_fig.map_upper(plt.scatter, color='purple')
+
+# We can also define the lower triangle in the figure, inclufing the plot type (kde)
+# or the color map (BluePurple)
+return_fig.map_lower(sns.kdeplot, cmap='cool')
+
+# Finally we'll define the diagonal as a series of histogram plots of the daily return
+return_fig.map_diag(plt.hist, bins=30)
+
+# plt.show()   # required in a plain .py script to open the figure window
+
+
+
+
+# Set up our figure by naming it returns_fig, call PairPLot on the DataFrame
+returns_fig = sns.PairGrid(closing_df)
+
+# Using map_upper we can specify what the upper triangle will look like.
+returns_fig.map_upper(plt.scatter, color='purple')
+
+# We can also define the lower triangle in the figure, inclufing the plot type (kde) or the color map (BluePurple)
+returns_fig.map_lower(sns.kdeplot, cmap='cool_d')
+
+# Finally we'll define the diagonal as a series of histogram plots of the daily return
+returns_fig.map_diag(plt.hist, bins=30)
+
+# plt.show()
+
+# Text(0.5, 1.0, 'Correlation of stock closing price')
+
+plt.figure(figsize=(12, 10))
+
+plt.subplot(2, 2, 1)
+sns.heatmap(tech_rets.corr(), annot=True, cmap='summer')
+plt.title('Correlation of stock return')
+
+plt.subplot(2, 2, 2)
+sns.heatmap(closing_df.corr(), annot=True, cmap='summer')
+plt.title('Correlation of stock closing price')
+
+# plt.show()
+
+# 5. How much value do we put at risk by investing in a particular stock?
+
+rets = tech_rets.dropna()
+
+area = np.pi * 20
+
+plt.figure(figsize=(10, 8))
+plt.scatter(rets.mean(), rets.std(), s=area)
+plt.xlabel('Expected return')
+plt.ylabel('Risk')
+
+for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
+    plt.annotate(label, xy=(x, y), xytext=(50, 50), textcoords='offset points', ha='right', va='bottom',
+                 arrowprops=dict(arrowstyle='-', color='blue', connectionstyle='arc3,rad=-0.3'))
+
+
+# plt.show()
+
+# 6. Predicting the closing price stock price of APPLE inc:
+
+# Get the stock quote
+df = yf.download(
+    'AAPL', start='2012-01-01', end=datetime.now(),
+    auto_adjust=False,         # keep a separate "Adj Close" column
+    multi_level_index=False,   # keep flat columns for a single ticker
+)
+# Show the data
+print(df)
+
+plt.figure(figsize=(16,6))
+plt.title('Close Price History')
+plt.plot(df['Close'])
+plt.xlabel('Date', fontsize=18)
+plt.ylabel('Close Price USD ($)', fontsize=18)
+plt.show()
+
+# now it gets interesting:
+
+# Create a new dataframe with only the 'Close' column and convert it to a NumPy array
+data = df.filter(['Close'])
+dataset = data.values
+
+# Number of rows to train the model on (95% of the data)
+training_data_len = int(np.ceil(len(dataset) * .95))
+
+# Scale the data
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler(feature_range=(0,1))
+scaled_data = scaler.fit_transform(dataset)
+
+print(scaled_data)
