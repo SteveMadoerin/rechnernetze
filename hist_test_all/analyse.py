@@ -353,3 +353,7 @@ plt.plot(valid[['Close', 'Predictions']])
 plt.legend(['Train', 'Val', 'Predictions'], loc='lower right')
 plt.show()
 
+# Show the valid and predicted prices
+valid
+
+print(valid)
