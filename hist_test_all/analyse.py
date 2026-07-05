@@ -19,6 +19,8 @@ import yfinance as yf
 # For time stamps
 from datetime import datetime
 
+# 1. What was the change in price of the stock overtime?
+
 # The tech stocks we'll use for this analysis
 tech_list = ['AAPL', 'GOOG', 'MSFT', 'AMZN']
 
