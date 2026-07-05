@@ -29,8 +29,8 @@ start = datetime(end.year - 1, end.month, end.day)
 for stock in tech_list:
     globals()[stock] = yf.download(
         stock, start=start, end=end,
-        auto_adjust=False,         # keep a separate "Adj Close" column
-        multi_level_index=False,   # keep flat columns for a single ticker
+        auto_adjust=False,  # keep a separate "Adj Close" column
+        multi_level_index=False,  # keep flat columns for a single ticker
     )
 
 # These are the DataFrames created above, not strings
@@ -115,17 +115,17 @@ fig, axes = plt.subplots(nrows=2, ncols=2)
 fig.set_figheight(10)
 fig.set_figwidth(15)
 
-AAPL['Daily Return'].plot(ax=axes[0,0], legend=True, linestyle='--', marker='o')
-axes[0,0].set_title('APPLE')
+AAPL['Daily Return'].plot(ax=axes[0, 0], legend=True, linestyle='--', marker='o')
+axes[0, 0].set_title('APPLE')
 
-GOOG['Daily Return'].plot(ax=axes[0,1], legend=True, linestyle='--', marker='o')
-axes[0,1].set_title('GOOGLE')
+GOOG['Daily Return'].plot(ax=axes[0, 1], legend=True, linestyle='--', marker='o')
+axes[0, 1].set_title('GOOGLE')
 
-MSFT['Daily Return'].plot(ax=axes[1,0], legend=True, linestyle='--', marker='o')
-axes[1,0].set_title('MICROSOFT')
+MSFT['Daily Return'].plot(ax=axes[1, 0], legend=True, linestyle='--', marker='o')
+axes[1, 0].set_title('MICROSOFT')
 
-AMZN['Daily Return'].plot(ax=axes[1,1], legend=True, linestyle='--', marker='o')
-axes[1,1].set_title('AMAZON')
+AMZN['Daily Return'].plot(ax=axes[1, 1], legend=True, linestyle='--', marker='o')
+axes[1, 1].set_title('AMAZON')
 
 fig.tight_layout()
 # plt.show()
@@ -153,7 +153,7 @@ plt.tight_layout()
 # NOTE: pandas_datareader's get_data_yahoo is deprecated; use yfinance instead.
 closing_df = yf.download(
     tech_list, start=start, end=end,
-    auto_adjust=False,   # keep a separate "Adj Close" column
+    auto_adjust=False,  # keep a separate "Adj Close" column
 )['Adj Close']
 
 # Make a new tech returns DataFrame
@@ -191,8 +191,6 @@ return_fig.map_lower(sns.kdeplot, cmap='cool')
 return_fig.map_diag(plt.hist, bins=30)
 
 # plt.show()   # required in a plain .py script to open the figure window
-
-
 
 
 # Set up our figure by naming it returns_fig, call PairPLot on the DataFrame
@@ -238,7 +236,6 @@ for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
     plt.annotate(label, xy=(x, y), xytext=(50, 50), textcoords='offset points', ha='right', va='bottom',
                  arrowprops=dict(arrowstyle='-', color='blue', connectionstyle='arc3,rad=-0.3'))
 
-
 # plt.show()
 
 # 6. Predicting the closing price stock price of APPLE inc:
@@ -246,18 +243,18 @@ for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
 # Get the stock quote
 df = yf.download(
     'AAPL', start='2012-01-01', end=datetime.now(),
-    auto_adjust=False,         # keep a separate "Adj Close" column
-    multi_level_index=False,   # keep flat columns for a single ticker
+    auto_adjust=False,  # keep a separate "Adj Close" column
+    multi_level_index=False,  # keep flat columns for a single ticker
 )
 # Show the data
 print(df)
 
-plt.figure(figsize=(16,6))
+plt.figure(figsize=(16, 6))
 plt.title('Close Price History')
 plt.plot(df['Close'])
 plt.xlabel('Date', fontsize=18)
 plt.ylabel('Close Price USD ($)', fontsize=18)
-plt.show()
+# plt.show()
 
 # now it gets interesting:
 
@@ -268,10 +265,51 @@ dataset = data.values
 # Number of rows to train the model on (95% of the data)
 training_data_len = int(np.ceil(len(dataset) * .95))
 
+print(training_data_len)
+
 # Scale the data
 from sklearn.preprocessing import MinMaxScaler
 
-scaler = MinMaxScaler(feature_range=(0,1))
+scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(dataset)
 
 print(scaled_data)
+
+# Create the training data set
+# Create the scaled training data set
+train_data = scaled_data[0:int(training_data_len), :]
+# Split the data into x_train and y_train data sets
+x_train = []
+y_train = []
+
+for i in range(60, len(train_data)):
+    x_train.append(train_data[i - 60:i, 0])
+    y_train.append(train_data[i, 0])
+    if i <= 61:
+        print(x_train)
+        print(y_train)
+        print()
+
+# Convert the x_train and y_train to numpy arrays
+x_train, y_train = np.array(x_train), np.array(y_train)
+
+# Reshape the data
+x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+# x_train.shape
+print(x_train.shape)
+
+from keras.models import Sequential
+from keras.layers import Dense, LSTM
+
+# Build the LSTM model
+model = Sequential()
+model.add(LSTM(128, return_sequences=True, input_shape=(x_train.shape[1], 1)))
+model.add(LSTM(64, return_sequences=False))
+model.add(Dense(25))
+model.add(Dense(1))
+
+# Compile the model
+model.compile(optimizer='adam', loss='mean_squared_error')
+
+# Train the model
+model.fit(x_train, y_train, batch_size=1, epochs=1)
