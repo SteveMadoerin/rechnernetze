@@ -8,7 +8,7 @@ sub-flows share the same collector/config:
 Run:  python pipeline.py
 """
 
-from config import Config
+from config import Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS
 from collector import DataCollector
 from validator import DataValidator, ValidationError
 from analyzer import DataAnalyzer
@@ -57,5 +57,73 @@ class Pipeline:
         self.run_model()
 
 
+def prompt_stocks() -> Config:
+    """Let the user pick which stocks to analyse.
+
+    Accepts either tickers (e.g. "AAPL, NVDA") or menu numbers (e.g. "1 5").
+    Empty input uses the default selection. Re-prompts on invalid input.
+    """
+    menu = list(AVAILABLE_STOCKS.items())
+    print("Available stocks:")
+    for i, (ticker, name) in enumerate(menu, 1):
+        print(f"  {i}. {ticker:<6} {name}")
+    print(f"Pick up to {MAX_STOCKS} by ticker or number, comma/space separated.")
+
+    while True:
+        raw = input(f"Your choice [default {DEFAULT_TICKERS}]: ").strip()
+        if raw == "":
+            return Config.from_tickers(DEFAULT_TICKERS)
+
+        tokens = [t for t in raw.replace(",", " ").split() if t]
+        tickers = []
+        for tok in tokens:
+            if tok.isdigit():                       # menu number -> ticker
+                idx = int(tok)
+                if not 1 <= idx <= len(menu):
+                    tickers = None
+                    print(f"Number out of range: {tok}")
+                    break
+                tickers.append(menu[idx - 1][0])
+            else:                                   # a ticker symbol
+                tickers.append(tok.upper())
+        if tickers is None:
+            continue
+
+        try:
+            config = Config.from_tickers(tickers)
+        except ValueError as e:
+            print(f"Invalid selection: {e}")
+            continue
+        return config
+
+
+def prompt_prediction_target(config: Config) -> None:
+    """Ask which of the selected stocks the LSTM should predict.
+
+    Sets config.model_ticker in place. Empty input keeps the first selected.
+    """
+    tickers = config.tickers
+    if len(tickers) == 1:                       # nothing to choose
+        config.model_ticker = tickers[0]
+        return
+
+    options = ", ".join(f"{i+1}={t}" for i, t in enumerate(tickers))
+    while True:
+        raw = input(f"Which stock to predict? ({options}) [default {tickers[0]}]: ").strip()
+        if raw == "":
+            config.model_ticker = tickers[0]
+            return
+        if raw.isdigit() and 1 <= int(raw) <= len(tickers):
+            config.model_ticker = tickers[int(raw) - 1]
+            return
+        if raw.upper() in tickers:
+            config.model_ticker = raw.upper()
+            return
+        print(f"Please pick one of {tickers} (or its number).")
+
+
 if __name__ == "__main__":
-    Pipeline().run()
+    config = prompt_stocks()
+    prompt_prediction_target(config)
+    print(f"Selected stocks: {config.tickers}  |  predicting: {config.model_ticker}")
+    Pipeline(config).run()
