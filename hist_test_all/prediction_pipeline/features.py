@@ -1,17 +1,21 @@
 """Feature engineering for the LSTM sub-pipeline.
 
-Scales the 'Close' series and turns it into sliding look-back windows. Holds the
+Scales the price series and turns it into sliding look-back windows. Holds the
 fitted scaler so Prediction can inverse-transform with the *same* scaler.
+
+Uses 'Adj Close' (split/dividend-adjusted) so long histories fetched with
+period='max' don't contain artificial split discontinuities.
 """
 
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 from config import Config
+
+PRICE_COL = "Adj Close"
 
 
 @dataclass
@@ -23,7 +27,8 @@ class Dataset:
     scaler: MinMaxScaler
     scaled_data: np.ndarray
     training_data_len: int
-    close_data: pd.DataFrame   # single-column 'Close' DataFrame, for plotting
+    close_data: pd.DataFrame   # single-column price DataFrame, for plotting
+    price_col: str             # name of the price column ("Adj Close")
 
 
 class FeatureEngineer:
@@ -33,12 +38,15 @@ class FeatureEngineer:
     def prepare(self, df: pd.DataFrame) -> Dataset:
         seq = self.config.sequence_length
 
-        close_data = df.filter(["Close"])
+        close_data = df.filter([PRICE_COL])
         dataset = close_data.values
         training_data_len = int(np.ceil(len(dataset) * self.config.train_split))
 
+        # Fit the scaler on the TRAINING portion only (no test-set leakage),
+        # then transform the whole series with those train-derived bounds.
         scaler = MinMaxScaler(feature_range=(0, 1))
-        scaled_data = scaler.fit_transform(dataset)
+        scaler.fit(dataset[:training_data_len])
+        scaled_data = scaler.transform(dataset)
 
         # --- training windows ---
         train_data = scaled_data[0:training_data_len, :]
@@ -67,4 +75,5 @@ class FeatureEngineer:
             scaled_data=scaled_data,
             training_data_len=training_data_len,
             close_data=close_data,
+            price_col=PRICE_COL,
         )

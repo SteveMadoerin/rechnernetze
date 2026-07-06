@@ -32,6 +32,7 @@ class Predictor:
     def _plot(self, dataset: Dataset, predictions) -> None:
         data = dataset.close_data
         split = dataset.training_data_len
+        price_col = dataset.price_col
 
         train = data[:split]
         valid = data[split:].copy()          # .copy() avoids SettingWithCopyWarning
@@ -42,9 +43,9 @@ class Predictor:
             plt.figure(figsize=(16, 6))
             plt.title("Model")
             plt.xlabel("Date", fontsize=18)
-            plt.ylabel("Close Price USD ($)", fontsize=18)
-            plt.plot(train["Close"])
-            plt.plot(valid[["Close", "Predictions"]])
+            plt.ylabel(f"{price_col} Price USD ($)", fontsize=18)
+            plt.plot(train[price_col])
+            plt.plot(valid[[price_col, "Predictions"]])
             plt.legend(["Train", "Val", "Predictions"], loc="lower right")
 
             if self.config.save_plots:
