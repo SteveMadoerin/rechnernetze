@@ -26,6 +26,17 @@ AVAILABLE_STOCKS = {
 DEFAULT_TICKERS = list(AVAILABLE_STOCKS)[:MAX_STOCKS]
 DEFAULT_COMPANY_NAMES = [AVAILABLE_STOCKS[t] for t in DEFAULT_TICKERS]
 
+# The plots you can turn on/off (key -> description), in display order.
+AVAILABLE_PLOTS = {
+    "closing_price": "Closing price history",
+    "volume": "Trading volume",
+    "moving_averages": "Moving averages (10/20/50 days)",
+    "daily_returns": "Daily returns",
+    "correlation": "Correlation heatmaps (needs >= 2 stocks)",
+    "risk": "Risk vs expected return (needs >= 2 stocks)",
+    "prediction": "LSTM prediction vs actual",
+}
+
 
 @dataclass
 class Config:
@@ -48,6 +59,8 @@ class Config:
     epochs: int = 1
 
     # --- Output / behaviour ---
+    # Which plots to produce; defaults to all. See AVAILABLE_PLOTS.
+    plots: List[str] = field(default_factory=lambda: list(AVAILABLE_PLOTS))
     show_plots: bool = True            # call plt.show(); set False for headless runs
     save_plots: bool = False           # save figures to disk instead of/along with showing
 
@@ -62,6 +75,11 @@ class Config:
             raise ValueError(f"number of stocks must be between 1 and {MAX_STOCKS}")
         if len(set(self.tickers)) != len(self.tickers):
             raise ValueError("duplicate tickers in selection")
+        unknown_plots = [p for p in self.plots if p not in AVAILABLE_PLOTS]
+        if unknown_plots:
+            raise ValueError(
+                f"unknown plot(s) {unknown_plots}; choose from {list(AVAILABLE_PLOTS)}"
+            )
         # Prediction runs on the first selected stock unless told otherwise.
         if self.model_ticker is None:
             self.model_ticker = self.tickers[0]

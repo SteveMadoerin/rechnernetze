@@ -8,7 +8,7 @@ sub-flows share the same collector/config:
 Run:  python pipeline.py
 """
 
-from config import Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS
+from config import Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS, AVAILABLE_PLOTS
 from collector import DataCollector
 from validator import DataValidator, ValidationError
 from analyzer import DataAnalyzer
@@ -122,8 +122,55 @@ def prompt_prediction_target(config: Config) -> None:
         print(f"Please pick one of {tickers} (or its number).")
 
 
+def prompt_plots(config: Config) -> None:
+    """Let the user choose which plots to produce. Sets config.plots in place.
+
+    Accepts plot keys or menu numbers (comma/space separated). "all" or empty
+    keeps everything; "none" turns all plots off.
+    """
+    menu = list(AVAILABLE_PLOTS.items())
+    print("Available plots:")
+    for i, (key, desc) in enumerate(menu, 1):
+        print(f"  {i}. {key:<15} {desc}")
+    print("Pick by key or number (comma/space separated). "
+          "Enter/'all' = all, 'none' = none.")
+
+    while True:
+        raw = input("Plots to show [default all]: ").strip().lower()
+        if raw in ("", "all"):
+            config.plots = list(AVAILABLE_PLOTS)
+            return
+        if raw == "none":
+            config.plots = []
+            return
+
+        tokens = [t for t in raw.replace(",", " ").split() if t]
+        selected, ok = [], True
+        for tok in tokens:
+            if tok.isdigit():
+                idx = int(tok)
+                if not 1 <= idx <= len(menu):
+                    print(f"Number out of range: {tok}")
+                    ok = False
+                    break
+                selected.append(menu[idx - 1][0])
+            elif tok in AVAILABLE_PLOTS:
+                selected.append(tok)
+            else:
+                print(f"Unknown plot: {tok}")
+                ok = False
+                break
+        if not ok:
+            continue
+        # De-duplicate while preserving order.
+        config.plots = list(dict.fromkeys(selected))
+        return
+
+
 if __name__ == "__main__":
     config = prompt_stocks()
     prompt_prediction_target(config)
+    prompt_plots(config)
     print(f"Selected stocks: {config.tickers}  |  predicting: {config.model_ticker}")
+    print(f"Plots: {config.plots or '(none)'}")
     Pipeline(config).run()

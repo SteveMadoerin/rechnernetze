@@ -123,15 +123,26 @@ class DataAnalyzer:
         self._finish("risk")
 
     def analyze(self, data: Dict[str, pd.DataFrame], closing_df: pd.DataFrame) -> None:
-        """Run the full EDA suite."""
-        self.summary(data)
-        self.plot_closing_price(data)
-        self.plot_volume(data)
-        self.add_moving_averages(data)
-        self.add_daily_returns(data)
+        """Run the selected EDA plots (see config.plots)."""
+        self.summary(data)  # text-only, always shown
+
+        selected = self.config.plots
+        per_stock = {
+            "closing_price": lambda: self.plot_closing_price(data),
+            "volume": lambda: self.plot_volume(data),
+            "moving_averages": lambda: self.add_moving_averages(data),
+            "daily_returns": lambda: self.add_daily_returns(data),
+        }
+        for key, run in per_stock.items():
+            if key in selected:
+                run()
+
         # Correlation and risk compare stocks against each other -> need >= 2.
-        if len(self._tickers(data)) >= 2:
-            self.correlation(closing_df)
-            self.risk(closing_df)
-        else:
-            print("[info] Only one stock selected - skipping correlation and risk plots.")
+        multi = len(self._tickers(data)) >= 2
+        for key, run in (("correlation", lambda: self.correlation(closing_df)),
+                         ("risk", lambda: self.risk(closing_df))):
+            if key in selected:
+                if multi:
+                    run()
+                else:
+                    print(f"[info] Only one stock selected - skipping '{key}' plot.")

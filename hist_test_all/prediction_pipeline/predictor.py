@@ -33,17 +33,19 @@ class Predictor:
         valid = data[split:].copy()          # .copy() avoids SettingWithCopyWarning
         valid["Predictions"] = predictions
 
-        plt.figure(figsize=(16, 6))
-        plt.title("Model")
-        plt.xlabel("Date", fontsize=18)
-        plt.ylabel("Close Price USD ($)", fontsize=18)
-        plt.plot(train["Close"])
-        plt.plot(valid[["Close", "Predictions"]])
-        plt.legend(["Train", "Val", "Predictions"], loc="lower right")
+        # The prediction table is always printed; the chart is opt-in.
+        if "prediction" in self.config.plots:
+            plt.figure(figsize=(16, 6))
+            plt.title("Model")
+            plt.xlabel("Date", fontsize=18)
+            plt.ylabel("Close Price USD ($)", fontsize=18)
+            plt.plot(train["Close"])
+            plt.plot(valid[["Close", "Predictions"]])
+            plt.legend(["Train", "Val", "Predictions"], loc="lower right")
 
-        if self.config.save_plots:
-            plt.savefig("prediction.png", bbox_inches="tight")
-        if self.config.show_plots:
-            plt.show()
+            if self.config.save_plots:
+                plt.savefig("prediction.png", bbox_inches="tight")
+            if self.config.show_plots:
+                plt.show()
 
         print(valid)
