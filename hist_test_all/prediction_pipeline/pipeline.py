@@ -167,10 +167,23 @@ def prompt_plots(config: Config) -> None:
         return
 
 
+def prompt_epochs(config: Config) -> None:
+    """Ask how many training epochs to run. Sets config.epochs in place."""
+    while True:
+        raw = input(f"Training epochs? [default {config.epochs}]: ").strip()
+        if raw == "":
+            return
+        if raw.isdigit() and int(raw) >= 1:
+            config.epochs = int(raw)
+            return
+        print("Please enter a positive whole number.")
+
+
 if __name__ == "__main__":
     config = prompt_stocks()
     prompt_prediction_target(config)
     prompt_plots(config)
+    prompt_epochs(config)
     print(f"Selected stocks: {config.tickers}  |  predicting: {config.model_ticker}")
-    print(f"Plots: {config.plots or '(none)'}")
+    print(f"Plots: {config.plots or '(none)'}  |  epochs: {config.epochs}")
     Pipeline(config).run()

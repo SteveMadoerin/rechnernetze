@@ -20,7 +20,11 @@ class Predictor:
         predictions = dataset.scaler.inverse_transform(predictions)
 
         rmse = np.sqrt(np.mean((predictions - dataset.y_test) ** 2))
-        print(f"RMSE: {rmse}")
+        # RMSE as a percentage of the mean actual price -> comparable across
+        # stocks trading at very different price levels.
+        mean_price = float(np.mean(dataset.y_test))
+        rmse_pct = rmse / mean_price * 100 if mean_price else float("nan")
+        print(f"RMSE: {rmse:.4f}  ({rmse_pct:.2f}% of mean price {mean_price:.2f})")
 
         self._plot(dataset, predictions)
         return predictions, rmse
