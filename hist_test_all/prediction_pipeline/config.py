@@ -52,7 +52,8 @@ class Config:
     # --- LSTM sub-pipeline (single ticker) ---
     # If left None, defaults to the first selected ticker.
     model_ticker: str = None
-    model_start: str = "2012-01-01"
+    # None = fetch the stock's entire available history (earliest date -> now).
+    model_start: str = None
     sequence_length: int = 60          # look-back window fed into the LSTM
     train_split: float = 0.95          # fraction of data used for training
     batch_size: int = 1

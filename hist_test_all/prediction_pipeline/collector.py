@@ -41,13 +41,16 @@ class DataCollector:
         )["Adj Close"]
 
     def collect_single(self, ticker: str = None, start: str = None) -> pd.DataFrame:
-        """Long history for one ticker, used by the LSTM sub-pipeline."""
+        """Full price history for one ticker, used by the LSTM sub-pipeline.
+
+        If no start date is given (config.model_start is None), fetches the
+        stock's entire available history (period='max') so each company starts
+        from its own earliest available date.
+        """
         ticker = ticker or self.config.model_ticker
-        start = start or self.config.model_start
-        return yf.download(
-            ticker,
-            start=start,
-            end=self.config.end,
-            auto_adjust=False,
-            multi_level_index=False,
-        )
+        start = start if start is not None else self.config.model_start
+        common = dict(auto_adjust=False, multi_level_index=False)
+        if start is None:
+            # period and start/end are mutually exclusive in yfinance.
+            return yf.download(ticker, period="max", **common)
+        return yf.download(ticker, start=start, end=self.config.end, **common)
