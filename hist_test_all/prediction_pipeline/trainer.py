@@ -4,7 +4,7 @@ Builds and trains the LSTM model on the prepared Dataset.
 """
 
 from keras.models import Sequential
-from keras.layers import Dense, LSTM, Input
+from keras.layers import Dense, LSTM, Input, Dropout
 from keras.callbacks import EarlyStopping
 
 from config import Config
@@ -17,10 +17,17 @@ class ModelTrainer:
         self.model = None
 
     def build(self, sequence_length: int) -> Sequential:
+        # Smaller stack + dropout than the original 128/64: less capacity to
+        # memorise, which pulls val_loss (and RMSE) down on this 1-D signal.
+        dropout = self.config.dropout
         model = Sequential()
         model.add(Input(shape=(sequence_length, 1)))
-        model.add(LSTM(128, return_sequences=True))
-        model.add(LSTM(64, return_sequences=False))
+        model.add(LSTM(64, return_sequences=True))
+        if dropout:
+            model.add(Dropout(dropout))
+        model.add(LSTM(32, return_sequences=False))
+        if dropout:
+            model.add(Dropout(dropout))
         model.add(Dense(25))
         model.add(Dense(1))
         model.compile(optimizer="adam", loss="mean_squared_error")

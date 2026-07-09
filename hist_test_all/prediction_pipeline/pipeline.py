@@ -8,13 +8,17 @@ sub-flows share the same collector/config:
 Run:  python pipeline.py
 """
 
-from config import Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS, AVAILABLE_PLOTS
+from config import (
+    Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS,
+    AVAILABLE_PLOTS, AVAILABLE_MODELS,
+)
 from collector import DataCollector
 from validator import DataValidator, ValidationError
 from analyzer import DataAnalyzer
 from features import FeatureEngineer
 from trainer import ModelTrainer
 from predictor import Predictor
+from datacamp_lstm import DataCampLSTM
 
 
 class Pipeline:
@@ -39,7 +43,11 @@ class Pipeline:
         self.analyzer.analyze(data, closing_df)
 
     def run_model(self):
-        """Stages 4-5 (with feature engineering) on a single ticker."""
+        """Stages 4-5 on a single ticker, using the selected back-end."""
+        if self.config.model_type == "datacamp":
+            return DataCampLSTM(self.config).run()
+
+        # Default "pipeline" back-end: feature engineering -> LSTM -> predict.
         df = self.collector.collect_single()
 
         # Validate the single-ticker frame too.
@@ -53,7 +61,10 @@ class Pipeline:
         return self.predictor.predict(model, dataset)
 
     def run(self) -> None:
-        self.run_eda()
+        if self.config.run_eda:
+            self.run_eda()
+        else:
+            print("[skip] EDA stage disabled; going straight to the model.")
         self.run_model()
 
 
@@ -122,6 +133,19 @@ def prompt_prediction_target(config: Config) -> None:
         print(f"Please pick one of {tickers} (or its number).")
 
 
+def prompt_eda(config: Config) -> None:
+    """Ask whether to run the EDA stage. Sets config.run_eda in place."""
+    while True:
+        raw = input("Run exploratory data analysis first? [Y/n]: ").strip().lower()
+        if raw in ("", "y", "yes"):
+            config.run_eda = True
+            return
+        if raw in ("n", "no"):
+            config.run_eda = False
+            return
+        print("Please answer y or n.")
+
+
 def prompt_plots(config: Config) -> None:
     """Let the user choose which plots to produce. Sets config.plots in place.
 
@@ -167,6 +191,26 @@ def prompt_plots(config: Config) -> None:
         return
 
 
+def prompt_model(config: Config) -> None:
+    """Ask which prediction back-end to use. Sets config.model_type in place."""
+    menu = list(AVAILABLE_MODELS.items())
+    print("Available models:")
+    for i, (key, desc) in enumerate(menu, 1):
+        print(f"  {i}. {key:<10} {desc}")
+
+    while True:
+        raw = input(f"Which model? [default {config.model_type}]: ").strip().lower()
+        if raw == "":
+            return
+        if raw.isdigit() and 1 <= int(raw) <= len(menu):
+            config.model_type = menu[int(raw) - 1][0]
+            return
+        if raw in AVAILABLE_MODELS:
+            config.model_type = raw
+            return
+        print(f"Please pick one of {list(AVAILABLE_MODELS)} (or its number).")
+
+
 def prompt_epochs(config: Config) -> None:
     """Ask how many training epochs to run. Sets config.epochs in place."""
     while True:
@@ -182,8 +226,11 @@ def prompt_epochs(config: Config) -> None:
 if __name__ == "__main__":
     config = prompt_stocks()
     prompt_prediction_target(config)
+    prompt_eda(config)
     prompt_plots(config)
+    prompt_model(config)
     prompt_epochs(config)
     print(f"Selected stocks: {config.tickers}  |  predicting: {config.model_ticker}")
-    print(f"Plots: {config.plots or '(none)'}  |  epochs: {config.epochs}")
+    print(f"EDA: {'on' if config.run_eda else 'off'}  |  model: {config.model_type}  "
+          f"|  plots: {config.plots or '(none)'}  |  epochs: {config.epochs}")
     Pipeline(config).run()

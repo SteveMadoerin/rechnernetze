@@ -16,8 +16,8 @@ class Predictor:
         self.config = config
 
     def predict(self, model, dataset: Dataset):
-        predictions = model.predict(dataset.x_test)
-        predictions = dataset.scaler.inverse_transform(predictions)
+        raw = model.predict(dataset.x_test)
+        predictions = self._to_prices(dataset, raw)
 
         rmse = np.sqrt(np.mean((predictions - dataset.y_test) ** 2))
         # RMSE as a percentage of the mean actual price -> comparable across
@@ -28,6 +28,20 @@ class Predictor:
 
         self._plot(dataset, predictions)
         return predictions, rmse
+
+    def _to_prices(self, dataset: Dataset, raw) -> np.ndarray:
+        """Turn raw model output into predicted prices (shape (m, 1))."""
+        values = dataset.scaler.inverse_transform(raw)
+        if not dataset.use_log_returns:
+            return values                                # already prices
+
+        # Return mode: values are one-step log-returns. Reconstruct each price
+        # from the *actual* previous close (honest one-step-ahead forecast).
+        log_rets = values.flatten()
+        prices = dataset.close_data.values.flatten()
+        split = dataset.training_data_len
+        prev = prices[split - 1: split - 1 + len(log_rets)]
+        return (prev * np.exp(log_rets)).reshape(-1, 1)
 
     def _plot(self, dataset: Dataset, predictions) -> None:
         data = dataset.close_data

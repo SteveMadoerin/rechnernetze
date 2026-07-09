@@ -37,6 +37,12 @@ AVAILABLE_PLOTS = {
     "prediction": "LSTM prediction vs actual",
 }
 
+# The model back-ends you can pick for the prediction stage (key -> description).
+AVAILABLE_MODELS = {
+    "pipeline": "Log-return LSTM (this project's optimised one-step model)",
+    "datacamp": "DataCamp tutorial LSTM (mid-price, multi-step forecast)",
+}
+
 
 @dataclass
 class Config:
@@ -52,14 +58,25 @@ class Config:
     # --- LSTM sub-pipeline (single ticker) ---
     # If left None, defaults to the first selected ticker.
     model_ticker: str = None
+    # Which prediction back-end to run. See AVAILABLE_MODELS.
+    model_type: str = "pipeline"
     # None = fetch the stock's entire available history (earliest date -> now).
     model_start: str = None
     sequence_length: int = 60          # look-back window fed into the LSTM
     train_split: float = 0.95          # fraction of data used for training
-    batch_size: int = 1
+    batch_size: int = 32               # >1 trains ~30x faster and generalises better
     epochs: int = 1
+    validation_split: float = 0.1      # fraction of training data held out for validation
+    early_stopping_patience: int = 3   # stop after N epochs without val_loss improvement
+    dropout: float = 0.2               # dropout between LSTM layers (0 disables)
+    # Predict stationary log-returns instead of absolute price. Fixes the
+    # extrapolation problem when recent prices exceed the training range.
+    use_log_returns: bool = True
 
     # --- Output / behaviour ---
+    # Run the exploratory data-analysis stage (collect/validate/plot the whole
+    # basket) before the prediction model. Set False to jump straight to the model.
+    run_eda: bool = True
     # Which plots to produce; defaults to all. See AVAILABLE_PLOTS.
     plots: List[str] = field(default_factory=lambda: list(AVAILABLE_PLOTS))
     show_plots: bool = True            # call plt.show(); set False for headless runs
@@ -80,6 +97,11 @@ class Config:
         if unknown_plots:
             raise ValueError(
                 f"unknown plot(s) {unknown_plots}; choose from {list(AVAILABLE_PLOTS)}"
+            )
+        if self.model_type not in AVAILABLE_MODELS:
+            raise ValueError(
+                f"unknown model_type {self.model_type!r}; "
+                f"choose from {list(AVAILABLE_MODELS)}"
             )
         # Prediction runs on the first selected stock unless told otherwise.
         if self.model_ticker is None:
