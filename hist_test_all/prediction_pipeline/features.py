@@ -35,6 +35,7 @@ class Dataset:
     close_data: pd.DataFrame       # single-column price DataFrame, for plotting
     price_col: str                 # name of the price column ("Adj Close")
     use_log_returns: bool          # how to turn model output back into prices
+    scaled: np.ndarray             # full scaled series, seed for future forecasts
 
 
 class FeatureEngineer:
@@ -47,21 +48,37 @@ class FeatureEngineer:
         training_data_len = int(np.ceil(len(prices) * self.config.train_split))
 
         if self.config.use_log_returns:
-            return self._prepare_returns(close_data, prices, training_data_len)
+            return self._prepare_returns(df, close_data, prices, training_data_len)
         return self._prepare_price(close_data, prices, training_data_len)
 
     # ------------------------------------------------------------------
+    def _extra_features(self, df: pd.DataFrame) -> np.ndarray:
+        """Exogenous features aligned to return index j (= info from day j+1).
+
+        Column 1: log volume change  log(V[j+1] / V[j])
+        Column 2: intraday range     (High - Low) / Close  on day j+1
+        Both are stationary, like the target return, so MinMax scaling on the
+        training slice generalises to the test period.
+        """
+        vol = np.clip(df["Volume"].values.astype(float), 1.0, None)
+        vol_change = np.log(vol[1:] / vol[:-1])
+        day_range = ((df["High"] - df["Low"]) / df["Close"]).values[1:]
+        return np.column_stack([vol_change, day_range])
+
+    # ------------------------------------------------------------------
     def _windows(self, scaled, lo, hi):
-        """Windows whose TARGET index t runs over [lo, hi)."""
+        """Windows whose TARGET index t runs over [lo, hi).
+
+        Inputs are all feature columns; the target is always column 0 (the
+        scaled close price or return). Returns x with shape (m, seq, k).
+        """
         seq = self.config.sequence_length
         xs, ys = [], []
         for t in range(lo, hi):
-            xs.append(scaled[t - seq:t, 0])
+            xs.append(scaled[t - seq:t, :])
             ys.append(scaled[t, 0])
         x = np.array(xs)
         y = np.array(ys)
-        if len(x):
-            x = np.reshape(x, (x.shape[0], x.shape[1], 1))
         return x, y
 
     # ------------------------------------------------------------------
@@ -79,11 +96,11 @@ class FeatureEngineer:
         return Dataset(
             x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test,
             scaler=scaler, training_data_len=split, close_data=close_data,
-            price_col=PRICE_COL, use_log_returns=False,
+            price_col=PRICE_COL, use_log_returns=False, scaled=scaled,
         )
 
     # ------------------------------------------------------------------
-    def _prepare_returns(self, close_data, prices, split) -> Dataset:
+    def _prepare_returns(self, df, close_data, prices, split) -> Dataset:
         seq = self.config.sequence_length
         flat = prices.flatten()
 
@@ -92,9 +109,18 @@ class FeatureEngineer:
         # Training returns are those whose target price index < split, i.e. r[0..split-2].
         train_ret_len = split - 1
 
+        # The target scaler covers only column 0 so Prediction can inverse-
+        # transform model output without touching the exogenous columns.
         scaler = MinMaxScaler(feature_range=(0, 1))
         scaler.fit(returns[:train_ret_len])              # train-only fit
         scaled = scaler.transform(returns)
+
+        needed = {"Volume", "High", "Low", "Close"}
+        if self.config.multivariate and needed.issubset(df.columns):
+            extra = self._extra_features(df)             # same length n-1
+            extra_scaler = MinMaxScaler(feature_range=(0, 1))
+            extra_scaler.fit(extra[:train_ret_len])      # train-only fit
+            scaled = np.hstack([scaled, extra_scaler.transform(extra)])
 
         # Work in return-index space (j = t - 1).
         x_train, y_train = self._windows(scaled, seq, train_ret_len)
@@ -104,5 +130,5 @@ class FeatureEngineer:
         return Dataset(
             x_train=x_train, y_train=y_train, x_test=x_test, y_test=y_test,
             scaler=scaler, training_data_len=split, close_data=close_data,
-            price_col=PRICE_COL, use_log_returns=True,
+            price_col=PRICE_COL, use_log_returns=True, scaled=scaled,
         )

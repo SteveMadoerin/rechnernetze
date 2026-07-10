@@ -37,6 +37,9 @@ AVAILABLE_PLOTS = {
     "prediction": "LSTM prediction vs actual",
 }
 
+# Upper bound for the future forecast horizon (business days).
+MAX_FORECAST_DAYS = 30
+
 # The model back-ends you can pick for the prediction stage (key -> description).
 AVAILABLE_MODELS = {
     "pipeline": "Log-return LSTM (this project's optimised one-step model)",
@@ -72,6 +75,13 @@ class Config:
     # Predict stationary log-returns instead of absolute price. Fixes the
     # extrapolation problem when recent prices exceed the training range.
     use_log_returns: bool = True
+    # Feed extra features (volume change, intraday range) alongside the close
+    # return, so the model sees market context, not just past closes. Only
+    # applies in log-return mode; the price-level mode stays univariate.
+    multivariate: bool = True
+    # How many business days beyond the last known close to forecast (0-30,
+    # 0 = no future forecast).
+    forecast_days: int = 7
 
     # --- Output / behaviour ---
     # Run the exploratory data-analysis stage (collect/validate/plot the whole
@@ -97,6 +107,11 @@ class Config:
         if unknown_plots:
             raise ValueError(
                 f"unknown plot(s) {unknown_plots}; choose from {list(AVAILABLE_PLOTS)}"
+            )
+        if not 0 <= self.forecast_days <= MAX_FORECAST_DAYS:
+            raise ValueError(
+                f"forecast_days must be between 0 (off) and {MAX_FORECAST_DAYS}, "
+                f"got {self.forecast_days}"
             )
         if self.model_type not in AVAILABLE_MODELS:
             raise ValueError(

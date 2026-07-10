@@ -16,12 +16,12 @@ class ModelTrainer:
         self.config = config
         self.model = None
 
-    def build(self, sequence_length: int) -> Sequential:
+    def build(self, sequence_length: int, n_features: int = 1) -> Sequential:
         # Smaller stack + dropout than the original 128/64: less capacity to
         # memorise, which pulls val_loss (and RMSE) down on this 1-D signal.
         dropout = self.config.dropout
         model = Sequential()
-        model.add(Input(shape=(sequence_length, 1)))
+        model.add(Input(shape=(sequence_length, n_features)))
         model.add(LSTM(64, return_sequences=True))
         if dropout:
             model.add(Dropout(dropout))
@@ -36,7 +36,7 @@ class ModelTrainer:
 
     def train(self, dataset: Dataset) -> Sequential:
         if self.model is None:
-            self.build(self.config.sequence_length)
+            self.build(self.config.sequence_length, dataset.x_train.shape[2])
 
         callbacks = []
         # Hold out the most recent slice of the training data for validation and

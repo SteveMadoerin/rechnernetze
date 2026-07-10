@@ -10,7 +10,7 @@ Run:  python pipeline.py
 
 from config import (
     Config, MAX_STOCKS, AVAILABLE_STOCKS, DEFAULT_TICKERS,
-    AVAILABLE_PLOTS, AVAILABLE_MODELS,
+    AVAILABLE_PLOTS, AVAILABLE_MODELS, MAX_FORECAST_DAYS,
 )
 from collector import DataCollector
 from validator import DataValidator, ValidationError
@@ -223,6 +223,19 @@ def prompt_epochs(config: Config) -> None:
         print("Please enter a positive whole number.")
 
 
+def prompt_forecast_days(config: Config) -> None:
+    """Ask how many days ahead to forecast. Sets config.forecast_days in place."""
+    while True:
+        raw = input(f"Forecast how many days ahead? (0-{MAX_FORECAST_DAYS}, 0 = off) "
+                    f"[default {config.forecast_days}]: ").strip()
+        if raw == "":
+            return
+        if raw.isdigit() and 0 <= int(raw) <= MAX_FORECAST_DAYS:
+            config.forecast_days = int(raw)
+            return
+        print(f"Please enter a whole number between 0 and {MAX_FORECAST_DAYS}.")
+
+
 if __name__ == "__main__":
     config = prompt_stocks()
     prompt_prediction_target(config)
@@ -230,7 +243,10 @@ if __name__ == "__main__":
     prompt_plots(config)
     prompt_model(config)
     prompt_epochs(config)
+    if config.model_type == "pipeline":
+        prompt_forecast_days(config)
     print(f"Selected stocks: {config.tickers}  |  predicting: {config.model_ticker}")
     print(f"EDA: {'on' if config.run_eda else 'off'}  |  model: {config.model_type}  "
-          f"|  plots: {config.plots or '(none)'}  |  epochs: {config.epochs}")
+          f"|  plots: {config.plots or '(none)'}  |  epochs: {config.epochs}  "
+          f"|  forecast: {f'{config.forecast_days}d' if config.forecast_days else 'off'}")
     Pipeline(config).run()
