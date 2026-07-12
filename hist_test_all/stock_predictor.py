@@ -135,6 +135,12 @@ class StockPredictor:
 
         self.feature_names = list(feat.columns)
 
+        # Features for ALL days (the target is not needed here) — the last
+        # `horizon` rows have no target and are dropped from training, but
+        # predict_future() must still see the newest data.
+        feat_all = feat[self.feature_names].dropna()
+        self.feat_all = feat_all
+
         # Target: cumulative log return over the next `horizon` days.
         # Consecutive targets overlap by horizon-1 days (autocorrelated).
         feat['target'] = (feat['log_ret'].rolling(self.horizon).sum()
@@ -159,6 +165,7 @@ class StockPredictor:
         self.y_scaler = StandardScaler().fit(
             y_raw[:self.split].reshape(-1, 1))
         self.X = self.x_scaler.transform(X_raw)
+        self.X_all = self.x_scaler.transform(self.feat_all.to_numpy())
         self.y = self.y_scaler.transform(y_raw.reshape(-1, 1)).ravel()
         self.y_raw = y_raw
         self.close_arr = self.feat['close'].to_numpy()
@@ -291,16 +298,17 @@ class StockPredictor:
     # ------------------------------------------------------------------
     def predict_future(self):
         """Predict the price `horizon` trading days after the last close."""
-        last_window = self.X[-self.window:].reshape(
+        last_window = self.X_all[-self.window:].reshape(
             1, self.window, len(self.feature_names))
         pred_scaled = self.model.predict(last_window, verbose=0).ravel()
         pred_ret = float(self.y_scaler.inverse_transform(
             pred_scaled.reshape(-1, 1)).ravel()[0])
-        last_close = float(self.close_arr[-1])
+        last_close = float(self.df['Close'].iloc[-1])
         future_price = last_close * np.exp(pred_ret)
-        future_date = self.feat.index[-1] + pd.tseries.offsets.BDay(
+        future_date = self.feat_all.index[-1] + pd.tseries.offsets.BDay(
             self.horizon)
-        print(f"Last close {self.feat.index[-1].date()}: {last_close:.2f}")
+        print(f"Last close {self.feat_all.index[-1].date()}: "
+              f"{last_close:.2f}")
         print(f"Predicted close ~{future_date.date()} "
               f"({self.horizon} trading days ahead): {future_price:.2f} "
               f"({pred_ret:+.2%})")
